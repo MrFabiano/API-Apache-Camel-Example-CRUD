@@ -28,7 +28,7 @@ public class PersonService {
         return personRepository.save(person);
     }
 
-    public Person updatePerson(Person newPerson, Long id) {
+    public Person updatePerson(Long id, Person newPerson) {
         return personRepository.findById(id)
                 .map(person -> {
                     person.setName(newPerson.getName());
@@ -41,7 +41,13 @@ public class PersonService {
                 });
     }
 
-    public void deletePerson(Long id){
-        personRepository.deleteById(id);
+    public void deletePerson(Long id) {
+        try {
+            personRepository.findById(id);
+            personRepository.deleteById(id);
+        } catch (Exception e) {
+            throw new RuntimeException("Error delete");
+        }
     }
 }
+
