@@ -1,12 +1,18 @@
 package com.api.camel.route;
 
+import com.api.camel.exception.ResourceNotFoundException;
 import com.api.camel.model.Person;
 import com.api.camel.service.PersonService;
 import org.apache.camel.Exchange;
+import org.apache.camel.Processor;
 import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.model.rest.RestBindingMode;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
+
+import java.util.Collections;
+import java.util.List;
 
 @Component
 public class PersonRoute extends RouteBuilder {
@@ -21,6 +27,11 @@ public class PersonRoute extends RouteBuilder {
                 .bindingMode(RestBindingMode.json)
                 .dataFormatProperty("prettyPrint", "true");
 
+        onException(ResourceNotFoundException.class)
+                .handled(true)
+                .setHeader(Exchange.HTTP_RESPONSE_CODE, constant(HttpStatus.NOT_FOUND.value()))
+                .setBody().constant(null);
+
         rest("/persons")
                 .get("/{id}").to("direct:getPerson")
                 .post().type(Person.class).to("direct:addPerson")
@@ -31,33 +42,40 @@ public class PersonRoute extends RouteBuilder {
         from("direct:getPerson")
                 .bean(personService, "getPerson(${header.id})")
                 .choice()
-                .when(header(Exchange.HTTP_RESPONSE_CODE).isEqualTo(200))
-                .setHeader(Exchange.HTTP_RESPONSE_CODE, constant(200))
+                .when(body().isNotNull())
+                .setHeader(Exchange.HTTP_RESPONSE_CODE, constant(HttpStatus.OK.value()))
                 .otherwise()
-                .setHeader(Exchange.HTTP_RESPONSE_CODE, constant(404));
+                .setHeader(Exchange.HTTP_RESPONSE_CODE, constant(HttpStatus.NOT_FOUND.value()));
 
         from("direct:addPerson")
                 .bean(personService, "addPerson")
-                .setHeader(Exchange.HTTP_RESPONSE_CODE, constant(201));
+                .setHeader(Exchange.HTTP_RESPONSE_CODE, constant(HttpStatus.CREATED.value()));
 
         from("direct:updatePerson")
                 .bean(personService, "updatePerson(${header.id}, ${body})")
                 .choice()
                 .when(body().isNotNull())
-                .setHeader(Exchange.HTTP_RESPONSE_CODE, constant(200))
+                .setHeader(Exchange.HTTP_RESPONSE_CODE, constant(HttpStatus.OK.value()))
                 .otherwise()
-                .setHeader(Exchange.HTTP_RESPONSE_CODE, constant(404));
+                .setHeader(Exchange.HTTP_RESPONSE_CODE, constant(HttpStatus.NOT_FOUND.value()));
 
         from("direct:deletePerson")
                 .bean(personService, "deletePerson(${header.id})")
-//                .onException(Exception.class)
-//                .handled(true)
-//                .setHeader(Exchange.HTTP_RESPONSE_CODE, constant(500))
-//                .end()
-                .setHeader(Exchange.HTTP_RESPONSE_CODE, constant(204));
+                .setHeader(Exchange.HTTP_RESPONSE_CODE, constant(HttpStatus.NO_CONTENT.value()))
+                .process(exchange -> {
+                    exchange.getMessage().setBody(null);
+                });
 
         from("direct:getAllPersons")
                 .bean(personService, "getAllPersons")
-                .setHeader(Exchange.HTTP_RESPONSE_CODE, constant(200));
+                .process(exchange -> {
+                    List<?> persons = exchange.getIn().getBody(List.class);
+                    if (persons == null || persons.isEmpty()) {
+                        exchange.getMessage().setHeader(Exchange.HTTP_RESPONSE_CODE, HttpStatus.NOT_FOUND.value());
+                        exchange.getMessage().setBody(null);
+                    } else {
+                        exchange.getMessage().setHeader(Exchange.HTTP_RESPONSE_CODE, HttpStatus.OK.value());
+                    }
+                });
     }
 }

@@ -43,7 +43,7 @@ public class PersonService {
 
     public void deletePerson(Long id) {
         try {
-            personRepository.findById(id);
+            personRepository.existsById(id);
             personRepository.deleteById(id);
         } catch (Exception e) {
             throw new RuntimeException("Error delete");
