@@ -1,5 +1,6 @@
 package com.api.camel.service;
 
+import com.api.camel.exception.ResourceNotFoundException;
 import com.api.camel.model.Person;
 import com.api.camel.repository.PersonRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,16 +30,12 @@ public class PersonService {
     }
 
     public Person updatePerson(Long id, Person newPerson) {
-        return personRepository.findById(id)
-                .map(person -> {
-                    person.setName(newPerson.getName());
-                    person.setAge(newPerson.getAge());
-                    return personRepository.save(person);
-                })
-                .orElseGet(() -> {
-                    newPerson.setId(id);
-                    return personRepository.save(newPerson);
-                });
+        if (personRepository.existsById(id)) {
+            newPerson.setId(id);
+            return personRepository.save(newPerson);
+        } else {
+            throw new ResourceNotFoundException("Person not found with id " + id);
+        }
     }
 
     public void deletePerson(Long id) {
@@ -46,7 +43,7 @@ public class PersonService {
             personRepository.existsById(id);
             personRepository.deleteById(id);
         } catch (Exception e) {
-            throw new RuntimeException("Error delete");
+            throw new ResourceNotFoundException("Error delete" + id);
         }
     }
 }

@@ -20,13 +20,11 @@ public class PersonRoute extends RouteBuilder {
     @Autowired
     private PersonService personService;
 
-
     @Override
     public void configure() throws Exception {
         restConfiguration().component("servlet")
                 .bindingMode(RestBindingMode.json)
                 .dataFormatProperty("prettyPrint", "true");
-
         onException(ResourceNotFoundException.class)
                 .handled(true)
                 .setHeader(Exchange.HTTP_RESPONSE_CODE, constant(HttpStatus.NOT_FOUND.value()))
@@ -52,19 +50,24 @@ public class PersonRoute extends RouteBuilder {
                 .setHeader(Exchange.HTTP_RESPONSE_CODE, constant(HttpStatus.CREATED.value()));
 
         from("direct:updatePerson")
+                .doTry()
                 .bean(personService, "updatePerson(${header.id}, ${body})")
-                .choice()
-                .when(body().isNotNull())
                 .setHeader(Exchange.HTTP_RESPONSE_CODE, constant(HttpStatus.OK.value()))
-                .otherwise()
-                .setHeader(Exchange.HTTP_RESPONSE_CODE, constant(HttpStatus.NOT_FOUND.value()));
+                .doCatch(ResourceNotFoundException.class)
+                .setHeader(Exchange.HTTP_RESPONSE_CODE, constant(HttpStatus.NOT_FOUND.value()))
+                .setBody(constant(null))
+                .end();
 
         from("direct:deletePerson")
+                //.doTry()
                 .bean(personService, "deletePerson(${header.id})")
                 .setHeader(Exchange.HTTP_RESPONSE_CODE, constant(HttpStatus.NO_CONTENT.value()))
+                //.doCatch(ResourceNotFoundException.class)
+               // .setHeader(Exchange.HTTP_RESPONSE_CODE, constant(HttpStatus.NOT_FOUND.value()))
                 .process(exchange -> {
                     exchange.getMessage().setBody(null);
                 });
+
 
         from("direct:getAllPersons")
                 .bean(personService, "getAllPersons")
