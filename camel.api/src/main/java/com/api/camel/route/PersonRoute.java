@@ -62,8 +62,9 @@ public class PersonRoute extends RouteBuilder {
                 //.doTry()
                 .bean(personService, "deletePerson(${header.id})")
                 .setHeader(Exchange.HTTP_RESPONSE_CODE, constant(HttpStatus.NO_CONTENT.value()))
+                 //.setBody(constant(null))
                 //.doCatch(ResourceNotFoundException.class)
-               // .setHeader(Exchange.HTTP_RESPONSE_CODE, constant(HttpStatus.NOT_FOUND.value()))
+                //.setHeader(Exchange.HTTP_RESPONSE_CODE, constant(HttpStatus.NOT_FOUND.value()))
                 .process(exchange -> {
                     exchange.getMessage().setBody(null);
                 });
